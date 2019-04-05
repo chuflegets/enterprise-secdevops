@@ -1,2 +1,2 @@
-# minroot
-Minimal CentOS 7 rootfs builder
+# Enterprise SecDevOps
+Experimental automated enterprise service deployment based on Docker containers.

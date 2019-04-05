@@ -1,0 +1,40 @@
+version: "3"
+services:
+    database:
+        build:
+            context: $HOME/contexts/postgresql
+            dockerfile: $HOME/dockerfiles/postgresql/Dockerfile
+        image: postgresql-distroless
+        container_name: database
+        environment:
+            POSTGRES_USER: soc
+            POSTGRES_PASSWORD: password
+            POSTGRES_DB: gogs_production
+        volumes:
+            - $HOME/volumes/postgresql:/var/lib/postgresql/data
+        ports:
+            - "8001:5432"
+
+    reverse-proxy:
+        build:
+            context: $HOME/contexts/nginx
+            dockerfile: $HOME/dockerfiles/nginx/Dockerfile
+        image: nginx-distroless
+        container_name: reverse-proxy
+        ports:
+            - "80:80"
+            - "443:443"
+
+    git-service:
+        build:
+            context: $HOME/context/gogs
+            dockerfile: $HOME/dockerfiles/gogs/Dockerfile
+        image: gogs-distroless
+        container_name: git-service
+        environment:
+            DATABASE_URL: postgres://soc:password@database:5432/gogs_production
+        ports:
+            - "8002:3000"
+            - "2222:22"
+        depends_on:
+            - database

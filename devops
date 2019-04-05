@@ -1,0 +1,172 @@
+#!/bin/bash
+
+# Script directories
+context_base_dir=$(pwd)/contexts
+dockerfile_base_dir=$(pwd)/dockerfiles
+volume_base_dir=$(pwd)/volumes
+src_base_dir=$(pwd)/src
+build_base_dir=$(pwd)/build
+
+# Accepted second parameter values
+accepted_artifacts=(bash python)
+
+# Special UTF-8 characters
+box_drawings_light_vertical_right=\xe2\x94\x9c
+box_drawings_light_up_right=\xe2\x94\x94
+box_drawings_light_horizontal=\xe2\x94\x80
+
+# Graphics
+subtask_chr=${box_drawings_up_right}${box_drawings_light_horizontal}${box_drawings_light_horizontal}
+
+usage="Usage: ${0##*/} command object"
+
+main() {
+    if [[ $# -ne 2 ]]
+    then
+        echo ${usage} 1>&2
+        exit 2
+    fi
+
+    local task=$1
+    local object=$2
+
+    case "${task}" in
+        get)
+            get ${object}
+            ;;
+
+        list)
+            case "${object}" in
+                targets)
+                    list_targets
+                    ;;
+                *)
+                    echo "Accepted values: targets" 1>&2
+                    exit 2
+                    ;;
+            esac
+            ;;
+
+        *)
+            echo "Unrecognized command ${task}" 1>&2
+            echo ${usage} 1>&2
+            exit 2
+            ;;
+    esac
+}
+
+contains() {
+    local array="$1[@]"
+    local seeking=$2
+
+    for element in "${!array}"
+    do
+        if [[ ${element} == ${seeking} ]]
+        then
+            return 0
+        fi
+    done
+    return 1
+}
+
+get() {
+    local artifact=$(echo $1 | cut -d':' -f1)
+    local version=$(echo $1 | cut -d':' -f2)
+    local src_dir=${src_base_dir}/${artifact}/${version}
+
+    if [[ $(contains accepted_artifacts ${artifact}) -ne 0 ]]
+    then
+        echo "Artifact ${artifact} is not allowed" 1>&2
+        exit 1
+    fi
+
+    echo "Getting ${artifact^}-${version}..."
+
+    if [[ ! -e ${src_dir} ]]
+    then
+        echo -e "\t* Source code directory not found. Creating it..."
+        mkdir -p ${src_dir}
+        echo -e "\t\t* Created: ${src_dir}"
+    fi
+
+    if [[ -n $(ls -A ${src_dir}) ]]
+    then
+        echo -e "\t* Source code was already downloaded and verified."
+    else
+        download ${artifact}:${version} ${src_dir}
+    fi
+}
+
+download() {
+    local artifact=$(echo $1 | cut -d':' -f1)
+    local version=$(echo $1 | cut -d':' -f2)
+    local download_dir=$2
+    
+    echo -e "\t* Source code directory is empty. Downloading sources..."
+    case "${artifact}" in
+        python)
+            import_public_keys ${artifact} ${download_dir}
+            local download_base_uri=https://www.python.org/ftp/${artifact}/${version}
+            local tarball=${artifact^}-${version}.tar.xz
+            local signature=${tarball}.asc
+
+            if [[ ! -e ${download_dir}/${tarball} ]]
+            then
+                wget -q -P ${download_dir} ${download_base_uri}/${tarball}
+                wget -q -P ${download_dir} ${download_base_uri}/${signature}
+
+                echo -e "\t\t* Downloaded: ${tarball}"
+                echo -e "\t* Verifying sources legitimacy..."
+
+                gpg --verify ${download_dir}/${tarball}.asc 2>/dev/null
+                
+                if [[ $? -ne 0 ]]
+                then
+                    echo -e "\t\t* Illegitimate ${artifact^}-${version} sources. \
+                        Deleting tarball..." 1>&2
+                    rm -f ${download_dir}/${tarball}
+                    echo -e "\t\t\t* Illegitimate sources tarball deleted." 1>&2
+                    exit 1
+                else
+                    echo -e "\t\t* Verified legitimate sources tarball."
+                fi
+                
+                rm -f ${download_dir}/${signature}
+            fi
+            ;;
+        *)
+            echo "Unknown artifact ${artifact}" 1>&2
+            exit 1
+            ;;
+    esac
+}
+
+import_public_keys() {
+    local provider=$1
+    local download_dir=$2
+
+    case "${provider}" in
+        python)
+            local pubkeys_file=pubkeys.txt
+            local pubkeys_url=https://www.python.org/static/files/${pubkeys_file}
+
+            echo -e "\t* Importing Python repositories GPG keys..."
+            wget -q -P ${download_dir} ${pubkeys_url}
+            gpg --import ${download_dir}/${pubkeys_file} 2>/dev/null
+            rm -f ${download_dir}/${pubkeys_file}
+            echo -e "\t\t* Python GPG keys imported."
+            ;;
+
+        *)
+            echo "Unknown provider" 1>&2
+            exit 1
+            ;;
+    esac
+}
+
+list_targets() {
+    echo -e "Posible targets:\n"
+    echo -e "  python:3.x.x\tCentOS with Python 3.x.x installed"
+}
+
+main $@
