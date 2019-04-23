@@ -35,6 +35,10 @@ main() {
             get ${object}
             ;;
 
+        build)
+            build ${object}
+            ;;
+
         list)
             case "${object}" in
                 targets)
@@ -162,6 +166,21 @@ import_public_keys() {
             exit 1
             ;;
     esac
+}
+
+build() {
+    local artifact=$(echo $1 | cut -d':' -f1)
+    local version=$(echo $1 | cut -d':' -f2)
+    local src_dir=${src_base_dir}/${artifact}/${version}
+    local tarball=${artifact^}-${version}.tar.xz
+    local dest_dir=${context_base_dir}/${artifact}
+
+    if [[ ! -e ${dest_dir}/${tarball} ]]
+    then
+        echo "Copying sources: ${tarball}"
+        echo -e "\t${src_dir} -> ${dest_dir}"
+        cp ${src_dir}/${tarball} ${dest_dir}
+    fi
 }
 
 list_targets() {
