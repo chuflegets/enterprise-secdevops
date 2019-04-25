@@ -1,0 +1,51 @@
+#!/bin/bash
+prefix=$(pwd)
+tardir=${prefix}/tarball
+
+# Versions
+gcc_version=8.3.0
+gmp_version=6.1.2
+m4_version=1.4.18
+mpc_version=1.1.0
+mpfr_version=4.0.2
+
+# Mirrors
+gnu_ftp_base=ftp://ftp.gnu.org/gnu
+gcc_uri=gcc/gcc-${gcc_version}
+gmp_uri=gmp
+m4_uri=m4
+mpc_uri=mpc
+mpfr_uri=mpfr
+
+# Tarballs
+gcc_tarball=gcc-${version}.tar.xz
+gmp_tarball=gmp-${version}.tar.xz
+m4_tarball=m4-${version}.tar.xz
+mpc_tarball=mpc-${version}.tar.gz
+mpfr_tarball=mpfr-${version}.tar.xz
+
+if [[ ! -d ${tardir} ]]
+then
+    mkdir -p ${tardir}
+fi
+
+if [[ ! -e ${tardir}/${gcc_tarball} ]]
+then
+    wget -P ${tardir} ${gnu_ftp_base}/${gcc_uri}/${gcc_tarball}
+fi
+if [[ ! -e ${tardir}/${gmp_tarball} ]]
+then
+    wget -P ${tardir} ${gnu_ftp_base}/${gmp_uri}/${gmp_tarball}
+fi
+if [[ ! -e ${tardir}/${m4_tarball} ]]
+then
+    wget -P ${tardir} ${gnu_ftp_base}/${m4_uri}/${m4_tarball}
+fi
+if [[ ! -e ${tardir}/${mpc_tarball} ]]
+then
+    wget -P ${tardir} ${gnu_ftp_base}/${mpc_uri}/${mpc_tarball}
+fi
+if [[ ! -e ${tardir}/${mpfr_tarball} ]]
+then
+    wget -P ${tardir} ${gnu_ftp_base}/${mpfr_uri}/${mpfr_tarball}
+fi
