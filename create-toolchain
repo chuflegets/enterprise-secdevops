@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 import ftplib
+import logging
 import os
 import subprocess
 
@@ -22,13 +23,13 @@ packages = [
     {
         'name': 'gmp',
         'version': '6.1.2',
-        'uri' : 'gmp'
+        'uri' : 'gmp',
         'format': 'xz'
     },
     {
         'name': 'm4',
         'version': '1.4.18',
-        'uri' : 'm4'
+        'uri' : 'm4',
         'format': 'xz'
     },
     {
@@ -40,7 +41,7 @@ packages = [
     {
         'name': 'mpfr',
         'version': '4.0.2',
-        'uri' : 'mpfr'
+        'uri' : 'mpfr',
         'format': 'xz'
     }
 ]
@@ -50,10 +51,34 @@ packages = [
 gnu_mirror='ftp.gnu.org'
 
 def create_folders():
+    logging.info('Creating toolchain folders...')
     for name, path in folders.items():
         if not os.path.exists(path):
+            logging.info('Creating %s' % path)
             os.makedirs(path)
+    logging.info('Toolchain folders created.')
 
 def download_sources():
+    original_cwd = os.getcwd()
+    os.chdir(folders['tardir'])
+    logging.info('Downloading tarballs into %s' % folders['tardir'])
+
     ftp = ftplib.FTP(gnu_mirror)
     ftp.login()
+    logging.info('Logged as anonymous into %s' % gnu_mirror)
+
+    for package in packages:
+        ftp.cwd('/gnu/%s' % package['uri'])
+        logging.info('Accesed %s' % ftp.pwd())
+        filename = package['name'] + '-' + package['version'] + '.tar.' + package['format']
+        if not os.path.exists(folders['tardir'] + '/' + filename):
+            logging.info('Downloading %s' % filename)
+            with open(filename, 'wb') as file:
+                ftp.retrbinary('RETR %s' % filename, file.write)
+
+    logging.info('Logging out of %s...' % gnu_mirror)
+    ftp.quit()
+
+
+create_folders()
+download_sources()
