@@ -1,2 +1,5 @@
 *.swp
 *.xz
+*.gz
+toolchain
+toolchain/*
