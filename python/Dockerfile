@@ -1,12 +1,11 @@
 FROM gcc:centos
 MAINTAINER sconstantino@grupobme.es
-RUN echo /usr/local/lib64 >> /etc/ld.so.conf.d/libc.conf
-RUN ldconfig
+ARG num_cores
 WORKDIR /tmp
 ADD Python-3.7.4.tar.xz ./
 WORKDIR /tmp/Python-3.7.4
 RUN ./configure --enable-optimizations --enable-shared --with-lto
-RUN make -j4
-RUN make -j4 check
+RUN make -j${num_cores}
+RUN make -j${num_cores} test
 RUN make install
 RUN ldconfig
