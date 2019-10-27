@@ -1,0 +1,87 @@
+#!/bin/bash
+appdir=$PWD/app
+rootdir=$PWD/rootfs
+bindir=$rootdir/bin
+libdir=$rootdir/lib
+lib64dir=$rootdir/lib64
+usrlibdir=$rootdir/usr/lib
+linux_gnu_libdir=$libdir/x86_64-linux-gnu
+linux_gnu_usrlibdir=$usrlibdir/x86_64-linux-gnu
+python_libdir=$libdir/python
+python_dyn_libdir=$python_libdir/lib-dynload
+
+
+rootfs_dirs=($bindir $libdir $lib64dir $usrlibdir $linux_gnu_libdir $linux_gnu_usrlibdir $python_libdir $python_dyn_libdir)
+for dir_dummy in ${rootfs_dirs[*]}
+do
+    if [[ ! -e $dir_dummy ]]
+    then
+        mkdir -p $dir_dummy
+    fi
+done
+
+pip3 install -r $appdir/requirements.txt
+sed -i "1s|.*|#\!/bin/python|" /usr/local/bin/uvicorn
+
+python_binary=$(which python3)
+uvicorn=$(which uvicorn)
+binaries=($python_binary)
+for file_dummy in ${binaries[*]}
+do
+    binary_shared_objects=$(ldd $file_dummy | awk '/\/lib/{print $(NF-1)}')
+    for shared_object in $binary_shared_objects
+    do
+        if [[ ! -e $rootdir/$shared_object ]]
+        then
+            cp $shared_object $rootdir/$shared_object
+        fi
+    done
+done
+cp $appdir/api.py $bindir
+cp $python_binary $bindir/python
+cp $uvicorn $bindir/$(basename $uvicorn)
+
+python_dynload_dir=/usr/lib/python3.7/lib-dynload
+python_dynload_shared_objects=$(find $python_dynload_dir -name "*.so")
+for dynlib in $python_dynload_shared_objects
+do
+    cp $dynlib $python_dyn_libdir/$(basename $dynlib)
+    dynlib_shared_objects=$(ldd $dynlib | awk '/\/lib/{print $(NF-1)}')
+    for shared_object in $dynlib_shared_objects
+    do
+        if [[ ! -e $rootdir/$shared_object ]]
+        then
+            cp $shared_object $rootdir/$shared_object
+        fi
+    done
+done
+
+python_system_libdirs=(/usr/lib/python3.7 /usr/local/lib/python3.7/dist-packages)
+for pysyslibdir in ${python_system_libdirs[*]}
+do
+    pyc_modules=$(find $pysyslibdir -name "__pycache__")
+    for module in $pyc_modules
+    do
+        module_name=${module/$pysyslibdir\//}
+        module_name=${module_name/__pycache__/}
+        if [[ -z "$module_name" ]]
+        then
+            dst=$python_libdir
+        else
+            dst=$python_libdir/$module_name
+        fi
+
+        if [[ ! -d $dst ]]
+        then
+            mkdir -p $dst
+        fi
+
+        module_pycs=$(find $module -name "*.pyc")
+        for pyc in $module_pycs
+        do
+            pyc_name=${pyc/.cpython-37/}
+            pyc_name=${pyc_name/$module\//}
+            cp $pyc $dst/$pyc_name
+        done
+    done
+done

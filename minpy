@@ -1,5 +1,0 @@
-FROM scratch
-MAINTAINER sconstantino@grupobme.es
-ADD rootfs.tar.xz /
-ENV LD_LIBRARY_PATH /lib
-ENTRYPOINT ["/bin/sh"]

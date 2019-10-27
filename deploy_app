@@ -1,3 +1,0 @@
-#!/bin/bash
-docker build --tag app:latest --file app/Dockerfile app/context
-docker run --name app -p 5057:5057 --rm app:latest
