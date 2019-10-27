@@ -1,0 +1,2 @@
+#!/bin/bash
+git clone -b 'REL_12_0' --single-branch --depth 1 git://git.postgresql.org/git/postgresql.git
