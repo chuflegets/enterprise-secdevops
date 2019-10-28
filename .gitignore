@@ -1,5 +1,4 @@
 *.swp
 *.xz
+!app/context/app.tar.xz
 *.gz
-toolchain
-toolchain/*

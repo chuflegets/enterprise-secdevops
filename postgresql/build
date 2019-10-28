@@ -1,0 +1,8 @@
+#!/bin/bash
+if [[ ! -e $PWD/context/postgresql-12.0.tar.gz ]]
+then
+    cd $PWD/context
+    wget https://ftp.postgresql.org/pub/source/v12.0/postgresql-12.0.tar.gz
+    cd $OLDPWD
+fi
+docker build --tag postgresql:12 --file Dockerfile context

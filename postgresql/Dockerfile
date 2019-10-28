@@ -1,6 +1,10 @@
 FROM debian:10
 MAINTAINER sconstantino@grupobme.es
 
-RUN apt-get -y update && apt-get -y upgrade && apt-get -y install build-essential vim tree git python3 python3-pip
-ADD .vimrc /root/.vimrc
-ENTRYPOINT ["/bin/bash"]
+RUN apt-get -y install libreadline-dev zlib1g-dev libssl-dev libpam0g-dev libldap2-dev libpam-ldap
+WORKDIR /tmp
+ADD postgresql-12.0.tar.gz .
+WORKDIR /tmp/postgresql-12.0
+RUN ./configure --with-pam --with-ldap --with-openssl --with-gnu-ld
+RUN make -j$((2*$(nproc --all)))
+#RUN make -j$((2*$(nproc --all))) check
