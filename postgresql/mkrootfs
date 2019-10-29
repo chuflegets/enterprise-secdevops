@@ -1,0 +1,58 @@
+#!/bin/bash
+rootdir=$PWD/rootfs
+bindir=$rootdir/bin
+datadir=$rootdir/data
+libdirs=()
+rootfs_dirs=($bindir $datadir)
+
+pg_bindir=/usr/local/pgsql/bin
+binaries=$(ls $pg_bindir)
+libraries=()
+
+# Get all needed libraries (paths)
+for binary in $binaries
+do
+    binary_libraries=$(ldd $pg_bindir/$binary | awk '/\/lib/{print $(NF-1)}')
+    for library in $binary_libraries
+    do
+        if [[ ${libraries[@]} != *${library}* ]]
+        then
+            libraries+=("${library}")
+        fi
+    done
+done
+
+# Get all need libraries parent folders
+for library in ${libraries[@]}
+do
+    libdir=$(dirname $library)
+    if [[ ${libdirs[@]} != *${libdir}* ]]
+    then
+        libdirs+=("${libdir}")
+    fi
+done
+
+# Append library paths to rootfs
+for libdir in ${libdirs[@]}
+do
+    rootfs_dirs+=("${rootdir}/${libdir}")
+done
+
+# Create rootfs
+for dir_dummy in ${rootfs_dirs[*]}
+do
+    if [[ ! -e $dir_dummy ]]
+    then
+        mkdir -p $dir_dummy
+    fi
+done
+
+# Populate rootfs
+for binary in $binaries
+do
+    cp $pg_bindir/$binary $bindir
+done
+for library in $libraries
+do
+    cp $library $rootdir/$library
+done

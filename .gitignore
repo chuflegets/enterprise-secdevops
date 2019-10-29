@@ -2,3 +2,4 @@
 *.xz
 !app/context/app.tar.xz
 *.gz
+postgresql/data/

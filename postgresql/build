@@ -1,8 +1,58 @@
 #!/bin/bash
-if [[ ! -e $PWD/context/postgresql-12.0.tar.gz ]]
+postgresql_version=12.0
+postgresql_tarball=postgresql-$postgresql_version.tar.gz
+postgresql_data_dir=$PWD/data
+postgresql_download_url=https://ftp.postgresql.org/pub/source/v$postgresql_version/$postgresql_tarball
+
+contexts=$PWD/contexts
+dockerfiles=$PWD/dockerfiles
+
+# Stages
+compile_image_repo=postgresql
+compile_image_tag=$postgresql_version-compile
+compile_image_name=$compile_image_repo:$compile_image_tag
+compile_image_dockerfile=$dockerfiles/compile/Dockerfile
+compile_image_context=$contexts/compile
+
+# Create context directories for every stage
+needed_dirs=($compile_image_context $postgresql_data_dir)
+for target_dir in ${needed_dirs[@]}
+do
+    if [[ ! -e $target_dir ]]
+    then
+        mkdir -p $target_dir
+    fi
+done
+
+# PostgreSQL compilation stage
+if [[ ! -e $compile_image_context/$postgresql_tarball ]]
 then
-    cd $PWD/context
-    wget https://ftp.postgresql.org/pub/source/v12.0/postgresql-12.0.tar.gz
+    cd $compile_image_context
+    wget $postgresql_download_url 
     cd $OLDPWD
 fi
-docker build --tag postgresql:12 --file Dockerfile context
+
+if [[ "$(docker images -q $compile_image_name 2> /dev/null)" == "" ]]
+then
+    docker build --tag $compile_image_name --file $compile_image_dockerfile $compile_image_context
+fi
+
+# Remove containers and images if the compilation failed
+if [[ $? -ne 0 ]]
+then
+    junk_containers=$(docker ps -a | awk '/Exited/{print $1}')
+    for junk_container in $junk_containers
+    do
+        docker rm $junk_container
+    done
+
+    junk_images=$(docker images | awk '/<none>/{print $3}')
+    for junk_img in $junk_images
+    do
+        docker rmi $junk_img
+    done
+else
+    docker run --name postgresql_initdb --rm -i -d -u postgres -v $postgresql_data_dir:/tmp/data $compile_image_name 1> /dev/null
+    docker exec -d -u postgres postgresql_initdb /usr/local/pgsql/bin/initdb -D /tmp/data
+    docker stop postgresql_initdb 1> /dev/null
+fi

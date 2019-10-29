@@ -1,0 +1,25 @@
+#!/bin/bash
+rt_version=4.4.4
+rt_tarball=rt-$rt_version.tar.gz
+rt_download_url=https://download.bestpractical.com/pub/rt/release/$rt_tarball
+
+context=$PWD/context
+dockerfile=$PWD/Dockerfile
+
+# Create needed directories
+needed_dirs=($context)
+for target_dir in ${needed_dirs[@]}
+do
+    if [[ ! -e $target_dir ]]
+    then
+        mkdir -p $target_dir
+    fi
+done
+
+# RT download
+if [[ ! -e $context/$rt_tarball ]]
+then
+    cd $context
+    wget $rt_download_url 
+    cd $OLDPWD
+fi
