@@ -2,7 +2,7 @@ FROM debian:10-devtools
 MAINTAINER sconstantino@grupobme.es
 
 RUN groupadd postgres && useradd --no-create-home --no-user-group -g postgres postgres
-RUN apt-get -y install libreadline-dev zlib1g-dev libssl-dev libpam-dev libldap2-dev
+RUN apt-get -y install libreadline-dev zlib1g-dev libssl-dev libpam-dev libldap2-dev && rm -rf /var/lib/apt/lists/*
 #libpam0g-dev libldap2-dev
 #libpam-ldap
 WORKDIR /tmp
