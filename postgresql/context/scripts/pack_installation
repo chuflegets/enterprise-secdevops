@@ -1,0 +1,111 @@
+#!/usr/bin/python3
+import logging
+import os
+import os.path
+import pathlib
+import shutil
+import tarfile
+import typing
+
+
+class File:
+    def __init__(self, name: str, path: typing.Union[str, pathlib.Path], *args, **kwargs):
+        self.name = name
+        self.path = str(path)
+
+    def __eq__(self, other):
+        return self.__hash__() == other.__hash__()
+
+    def __hash__(self):
+        return hash((self.name, self.path))
+
+    def __repr__(self):
+        return str(self.__dict__)
+
+    def __str__(self):
+        return self.__repr__()
+
+    @staticmethod
+    def from_dir_entry(entry: os.DirEntry):
+        return File(entry.name, entry.path)
+
+    @staticmethod
+    def from_ldd(ldd_line):
+        tokens = ldd_line.strip().split('\x20')
+        if tokens[1] == '=>':
+            name = tokens[0]
+            path = tokens[2]
+        else:
+            name = os.path.basename(tokens[0])
+            path = tokens[0]
+        return File(name, path)
+
+
+def locate(binaries: typing.Set[str]):
+    return {File(binary, os.popen(f'which {binary}').read().strip()) for binary in binaries}
+
+
+def resolve_runtime_dependencies(binaries: typing.Set[os.DirEntry]):
+    shared_objects = set()
+    for binary in binaries:
+        ldd_output = os.popen(f'ldd {binary.path}').read().strip()
+        ldd_lines = ldd_output.split('\n')
+        if len(ldd_lines) == 1:
+            continue
+        else:
+            shared_objects |= {File.from_ldd(line)
+                    for line in filter(lambda x: not x.startswith('linux-vdso'), ldd_lines)}
+    return shared_objects
+
+
+def resolve_so_directories(root_dir: pathlib.Path, libraries: typing.Set[File]):
+    so_directories = set()
+    for library in libraries:
+        so_directories.add(root_dir / str(pathlib.Path(library.path).parent).strip('/'))
+    return so_directories
+
+
+def make_directories(system_dirs: typing.Set[pathlib.Path]):
+    for directory in system_dirs:
+        try:
+            os.makedirs(directory)
+        except FileExistsError:
+            logging.warning(f'Directory {directory} already exists')
+
+
+def mkrootfs(dst_dir: typing.Union[str, pathlib.Path], binaries: typing.Set[os.DirEntry]):
+    if type(dst_dir) is str:
+        root_dir = pathlib.Path(dst_dir)
+    else:
+        root_dir = dst_dir
+
+    libraries = resolve_runtime_dependencies(binaries)
+    bindir = root_dir / 'bin'
+    datadir = root_dir / 'data'
+    etc = root_dir / 'etc'
+    user_management_files = {File('passwd', '/etc/passwd'), File('group', '/etc/group')}
+    system_dirs = {bindir, datadir, etc} | resolve_so_directories(root_dir, libraries)
+    make_directories(system_dirs)
+
+    for binary in binaries:
+        shutil.copyfile(binary.path, bindir / binary.name)
+    for library in libraries:
+        shutil.copyfile(library.path, root_dir / library.path.strip('/'))
+    for usr_mgmt_file in user_management_files:
+        shutil.copyfile(usr_mgmt_file.path, root_dir / usr_mgmt_file.path.strip('/'))
+
+
+if __name__ == '__main__':
+    logging.basicConfig(filename='pack_installation.log', level=logging.INFO)
+    pg_bindir = pathlib.Path('/usr/local/pgsql/bin')
+    binaries = {dir_entry for dir_entry in os.scandir(pg_bindir)} | locate({'id', 'tree'})
+    current_dir = pathlib.Path('.').resolve()
+    root_dir = current_dir / 'rootfs'
+    tarball_path = current_dir / 'rootfs.tar.xz'
+    mkrootfs(root_dir, binaries)
+    with tarfile.open(tarball_path, mode='x:xz') as tarball:
+        for dir_entry in os.scandir(root_dir):
+            logging.info(f'Adding {dir_entry.name} to {tarball_path}')
+            tarball.add(dir_entry, arcname=dir_entry.name)
+    shutil.rmtree(root_dir)
+
