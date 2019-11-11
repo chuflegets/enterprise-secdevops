@@ -1,0 +1,7 @@
+#!/bin/bash
+num_processors=$((2*$(nproc --all)))
+cd /tmp/postgresql-12.0
+./configure --with-pam --with-ldap --with-openssl --with-gnu-ld
+make -j$num_processors
+make install
+cd /tmp && rm -rf /tmp/postgresql-12.0
