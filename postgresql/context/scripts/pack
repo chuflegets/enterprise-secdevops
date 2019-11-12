@@ -4,6 +4,8 @@ import os
 import os.path
 import pathlib
 import shutil
+import stat
+import tarfile
 import typing
 
 
@@ -31,7 +33,6 @@ class File:
     @staticmethod
     def from_ldd(ldd_line):
         tokens = ldd_line.strip().split('\x20')
-        print(tokens)
         if tokens[1] == '=>':
             name = tokens[0]
             path = tokens[2]
@@ -45,7 +46,7 @@ def locate(binaries: typing.Set[str]):
     return {File(binary, os.popen(f'which {binary}').read().strip()) for binary in binaries}
 
 
-def resolve_runtime_dependencies(binaries: typing.Iterator[os.DirEntry]):
+def resolve_runtime_dependencies(binaries: typing.Set[os.DirEntry]):
     shared_objects = set()
     for binary in binaries:
         ldd_output = os.popen(f'ldd {binary.path}').read().strip()
@@ -73,7 +74,7 @@ def make_directories(system_dirs: typing.Set[pathlib.Path]):
             logging.warning(f'Directory {directory} already exists')
 
 
-def mkrootfs(dst_dir: typing.Union[str, pathlib.Path], binaries: typing.Iterator[os.DirEntry]):
+def mkrootfs(dst_dir: typing.Union[str, pathlib.Path], binaries: typing.Set[os.DirEntry]):
     if type(dst_dir) is str:
         root_dir = pathlib.Path(dst_dir)
     else:
@@ -87,13 +88,21 @@ def mkrootfs(dst_dir: typing.Union[str, pathlib.Path], binaries: typing.Iterator
 
     for binary in binaries:
         shutil.copyfile(binary.path, bindir / binary.name)
-        print(bindir / binary.name)
+    os.chmod(bindir, stat.S_IXUSR)
     for library in libraries:
         shutil.copyfile(library.path, root_dir / library.path.strip('/'))
 
 
 if __name__ == '__main__':
-    logging.basicConfig(filename='pack_installation.log', level=logging.WARNING)
+    logging.basicConfig(filename='pack.log', level=logging.WARNING)
+    current_dir = pathlib.Path('.').resolve()
+    chroot_dir = current_dir / 'rootfs'
     pg_bindir = pathlib.Path('/usr/local/pgsql/bin')
-    mkrootfs(pathlib.Path('.').resolve() / 'rootfs', os.scandir(pg_bindir))
+    binaries = {dir_entry for dir_entry in os.scandir(pg_bindir)}
+    binaries |= locate({'bash', 'id', 'tree'})
+    mkrootfs(chroot_dir, binaries)
+    with tarfile.open(current_dir / 'rootfs.tar.xz', mode='x:xz') as tarball:
+        for dir_entry in os.scandir(chroot_dir):
+            tarball.add(dir_entry.path, dir_entry.name)
+    shutil.rmtree(chroot_dir)
 

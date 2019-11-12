@@ -4,4 +4,5 @@ cd /tmp/postgresql-12.0
 ./configure --with-pam --with-ldap --with-openssl --with-gnu-ld
 make -j$num_processors
 make install
-cd /tmp && rm -rf /tmp/postgresql-12.0
+useradd --no-create-home postgres
+cd $OLDPWD && rm -rf /tmp/postgresql-12.0
