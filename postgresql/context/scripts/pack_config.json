@@ -1,0 +1,27 @@
+{
+    "stages": [
+        {
+            "actions": [
+                {
+                    "name": "download"
+                }
+            ]
+        }
+    ],
+    "binaries": {
+        "names": [
+            "bash",
+            "id",
+            "tree"
+        ],
+        "paths": [
+            "/usr/local/pgsqli/bin"
+        ]
+    },
+    "mappings": [
+        {
+            "src": "/usr/local/pgsql/share",
+            "dst": "/share"
+        }
+    ]
+}

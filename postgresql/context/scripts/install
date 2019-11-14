@@ -1,8 +1,9 @@
 #!/bin/bash
 num_processors=$((2*$(nproc --all)))
+mkdir /share
 cd /tmp/postgresql-12.0
-./configure --with-pam --with-ldap --with-openssl --with-gnu-ld
+./configure --datarootdir=/share --with-pam --with-ldap --with-openssl --with-gnu-ld
 make -j$num_processors
 make install
-useradd --no-create-home postgres
+useradd -m -s /bin/bash -U postgres
 cd $OLDPWD && rm -rf /tmp/postgresql-12.0

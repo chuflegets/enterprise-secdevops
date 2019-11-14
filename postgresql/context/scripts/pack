@@ -31,6 +31,10 @@ class File:
         return File(entry.name, entry.path)
 
     @staticmethod
+    def scandir(path: typing.Union[str, pathlib.Path]):
+        return {File.from_dir_entry(dir_entry) for dir_entry in os.scandir(path)}
+
+    @staticmethod
     def from_ldd(ldd_line):
         tokens = ldd_line.strip().split('\x20')
         if tokens[1] == '=>':
@@ -74,7 +78,7 @@ def make_directories(system_dirs: typing.Set[pathlib.Path]):
             logging.warning(f'Directory {directory} already exists')
 
 
-def mkrootfs(dst_dir: typing.Union[str, pathlib.Path], binaries: typing.Set[os.DirEntry]):
+def mkrootfs(dst_dir: typing.Union[str, pathlib.Path], binaries: typing.Set[File]):
     if type(dst_dir) is str:
         root_dir = pathlib.Path(dst_dir)
     else:
@@ -82,8 +86,8 @@ def mkrootfs(dst_dir: typing.Union[str, pathlib.Path], binaries: typing.Set[os.D
 
     libraries = resolve_runtime_dependencies(binaries)
     bindir = root_dir / 'bin'
-    datadir = root_dir / 'data'
-    system_dirs = {bindir, datadir} | resolve_so_directories(root_dir, libraries)
+    #datadir = root_dir / 'data'
+    system_dirs = {bindir} | resolve_so_directories(root_dir, libraries)
     make_directories(system_dirs)
 
     for binary in binaries:
@@ -97,12 +101,13 @@ if __name__ == '__main__':
     logging.basicConfig(filename='pack.log', level=logging.WARNING)
     current_dir = pathlib.Path('.').resolve()
     chroot_dir = current_dir / 'rootfs'
-    pg_bindir = pathlib.Path('/usr/local/pgsql/bin')
-    binaries = {dir_entry for dir_entry in os.scandir(pg_bindir)}
+    postgresql_installation_dir = pathlib.Path('/usr/local/pgsql')
+    postgresql_binaries_dir = postgresql_installation_dir / 'bin'
+    binaries = File.scandir(postgresql_binaries_dir)
     binaries |= locate({'bash', 'id', 'tree'})
     mkrootfs(chroot_dir, binaries)
     with tarfile.open(current_dir / 'rootfs.tar.xz', mode='x:xz') as tarball:
         for dir_entry in os.scandir(chroot_dir):
             tarball.add(dir_entry.path, dir_entry.name)
-    shutil.rmtree(chroot_dir)
+    #shutil.rmtree(chroot_dir)
 

@@ -12,7 +12,7 @@ RUN chmod 700 ./scripts/*
 RUN ./scripts/install
 RUN ./scripts/pack
 RUN ls /tmp
-#ENTRYPOINT ["/bin/bash"]
+ENTRYPOINT ["/bin/bash"]
 #WORKDIR /tmp/postgresql-12.0
 #RUN ./configure --with-pam --with-ldap --with-openssl --with-gnu-ld && make -j$((2*$(nproc --all))) && make install
 #WORKDIR /tmp
@@ -21,12 +21,12 @@ RUN ls /tmp
 #RUN make -j$((2*$(nproc --all))) check
 #USER postgres
 #ENV PATH=/usr/local/pgsql/bin:$PATH
-FROM scratch
-ADD --from=compile-image --chown=postgres:postgres /tmp/rootfs.tar.xz .
-USER postgres
-ENV PATH=/bin
-ENV LD_LIBRARY_PATH=/usr/lib/local/pgsql:/usr/lib/x86_64-linux-gnu:/lib/x86_64-linux-gnu:/lib64
-RUN ["id"]
-RUN ["tree", "-L", "2"]
+#FROM scratch
+#ADD --from=compile-image --chown=postgres:postgres /tmp/rootfs.tar.xz .
+#USER postgres
+#ENV PATH=/bin
+#ENV LD_LIBRARY_PATH=/usr/lib/local/pgsql:/usr/lib/x86_64-linux-gnu:/lib/x86_64-linux-gnu:/lib64
+#RUN ["id"]
+#RUN ["tree", "-L", "2"]
 #RUN ["tree", "-L", "2"] 
 #ENTRYPOINT [""]
